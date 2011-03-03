@@ -1,5 +1,3 @@
-#!/usr/bin/perl
-
 =head1 NAME
 
 WWW::Tumblr - Perl interface for the Tumblr API
@@ -86,7 +84,7 @@ use Data::Dumper;
 use LWP::UserAgent;
 use HTTP::Request::Common;
 
-our $VERSION = '4.1';
+our $VERSION = '4.2';
 
 =head2 new
 
@@ -266,6 +264,153 @@ sub read {
     }
   } else {
     return $self->{ua}->get($url)->content;
+  }
+}
+
+=head2 pages
+
+=cut
+
+sub pages {
+  my($self, %opts) = @_;
+  
+  my $auth;
+  if($opts{auth}) {
+    croak "No email or password defined"
+      if not $self->email or not $self->password;
+    $auth = 1;
+    delete $opts{auth};
+  }
+
+  croak "No user or url defined" unless $self->user or $self->url;
+
+  my $url = $self->url . '/api/pages';
+
+  $url .= '?'.join'&',map{qq{$_=$opts{$_}}} sort keys %opts;
+
+  if($auth) {
+    $opts{email} = $self->email;
+    $opts{password} = $self->password;
+    my $req = HTTP::Request->new(POST => $url);
+    $req->content_type('application/x-www-form-urlencoded');
+    $req->content(join '&', map{ qq{$_=$opts{$_}} } sort keys %opts);
+    my $res = $self->{ua}->request($req);
+    if($res->is_success) {
+      return $res->decoded_content;
+    } else {
+      $self->errstr($res->as_string);
+      return;
+    }
+  } else {
+    return $self->{ua}->get($url)->content;
+  }
+}
+
+=head2 likes
+
+=cut
+
+sub likes {
+  my($self, %opts) = @_;
+  
+  croak "No email or password defined"
+    if not $self->email or not $self->password;
+
+  croak "No user or url defined" unless $self->user or $self->url;
+
+  my $url = 'http://www.tumblr.com/api/likes';
+  
+  $url .= '?'.join'&',map{qq{$_=$opts{$_}}} sort keys %opts;
+
+  $opts{email} = $self->email;
+  $opts{password} = $self->password;
+  my $req = HTTP::Request->new(POST => $url);
+  $req->content_type('application/x-www-form-urlencoded');
+  $req->content(join '&', map{ qq{$_=$opts{$_}} } sort keys %opts);
+  my $res = $self->{ua}->request($req);
+  if($res->is_success) {
+    return $res->decoded_content;
+  } else {
+    $self->errstr($res->as_string);
+    return;
+  }
+}
+
+=head2 like
+
+=cut
+
+sub like {
+  my($self, %opts) = @_;
+
+  $opts{email} = $self->email;
+  $opts{password} = $self->password;
+
+  croak "No email was defined" unless $self->email;
+  croak "No password was defined" unless $self->password;
+
+  my $req = HTTP::Request->new(POST => 'http://www.tumblr.com/api/like');
+  $req->content_type('application/x-www-form-urlencoded');
+  $req->content(join '&', map { qq{$_=$opts{$_}} } sort keys %opts);
+  my $res = $self->{ua}->request($req);
+  
+  if($res->is_success) {
+    return $res->decoded_content;
+  } else {
+    $self->errstr($res->as_string);
+    return;
+  }
+}
+
+=head2 unlike
+
+=cut
+
+sub unlike {
+  my($self, %opts) = @_;
+
+  $opts{email} = $self->email;
+  $opts{password} = $self->password;
+
+  croak "No email was defined" unless $self->email;
+  croak "No password was defined" unless $self->password;
+
+  my $req = HTTP::Request->new(POST => 'http://www.tumblr.com/api/unlike');
+  $req->content_type('application/x-www-form-urlencoded');
+  $req->content(join '&', map { qq{$_=$opts{$_}} } sort keys %opts);
+  my $res = $self->{ua}->request($req);
+  
+  if($res->is_success) {
+    return $res->decoded_content;
+  } else {
+    $self->errstr($res->as_string);
+    return;
+  }
+}
+
+=head2 reblog
+
+=cut
+
+sub reblog {
+  my($self, %opts) = @_;
+
+  $opts{email} = $self->email;
+  $opts{password} = $self->password;
+
+  croak "No email was defined" unless $self->email;
+  croak "No password was defined" unless $self->password;
+
+  my $req = HTTP::Request->new(POST => 'http://www.tumblr.com/api/reblog');
+  $req->content_type('application/x-www-form-urlencoded');
+  $req->content(join '&', map { qq{$_=$opts{$_}} } sort keys %opts);
+  my $res = $self->{ua}->request($req);
+  
+  if($res->is_success) {
+    return $res->decoded_content;
+  } else {
+    $self->errstr($res->as_string);
+    return;
   }
 }
 
