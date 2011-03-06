@@ -108,11 +108,12 @@ sub new {
 	my $ua = LWP::UserAgent->new;
 	
 	return bless {
-		user		=> $opts{user},
-		email		=> $opts{email},
-		password	=> $opts{password},
-		url			=> $opts{url},
-		ua 			=>	$ua,
+    user      => $opts{user},
+    email     => $opts{email},
+    password  => $opts{password},
+    url       => $opts{url},
+    ua        => $ua,
+    _tumblr   => 'https://www.tumblr.com',
 	}, $class;
 }
 
@@ -210,8 +211,8 @@ arguments. It returns the JSON version of C<read>.
 
 sub read_json {
 	my($self, %opts) = @_;
-	$opts{json} = 1;
-	return $self->read(%opts);
+
+	return $self->_HTTP_request('read-json', %opts);
 }
 
 =head2 read
@@ -233,38 +234,10 @@ Tumblr's API for details.
 
 sub read {
 	my($self, %opts) = @_;
-	
-  my $auth;
-  if($opts{auth}) {
-    croak "No email or password defined"
-      if not $self->email or not $self->password;
-    $auth = 1;
-    delete $opts{auth};
-  }
 
 	croak "No user or url defined" unless $self->user or $self->url;
 
-	my $url = $self->url . '/api/read';
-	
-	$url .= '/json' if defined $opts{json};
-	$url .= '?'.join'&',map{qq{$_=$opts{$_}}} sort keys %opts;
-
-  if($auth) {
-    $opts{email} = $self->email;
-    $opts{password} = $self->password;
-    my $req = HTTP::Request->new(POST => $url);
-    $req->content_type('application/x-www-form-urlencoded');
-    $req->content(join '&', map{ qq{$_=$opts{$_}} } sort keys %opts);
-    my $res = $self->{ua}->request($req);
-    if($res->is_success) {
-      return $res->decoded_content;
-    } else {
-      $self->errstr($res->as_string);
-      return;
-    }
-  } else {
-    return $self->{ua}->get($url)->content;
-  }
+	return $self->_HTTP_request('read', %opts);
 }
 
 =head2 pages
@@ -274,36 +247,7 @@ sub read {
 sub pages {
   my($self, %opts) = @_;
   
-  my $auth;
-  if($opts{auth}) {
-    croak "No email or password defined"
-      if not $self->email or not $self->password;
-    $auth = 1;
-    delete $opts{auth};
-  }
-
-  croak "No user or url defined" unless $self->user or $self->url;
-
-  my $url = $self->url . '/api/pages';
-
-  $url .= '?'.join'&',map{qq{$_=$opts{$_}}} sort keys %opts;
-
-  if($auth) {
-    $opts{email} = $self->email;
-    $opts{password} = $self->password;
-    my $req = HTTP::Request->new(POST => $url);
-    $req->content_type('application/x-www-form-urlencoded');
-    $req->content(join '&', map{ qq{$_=$opts{$_}} } sort keys %opts);
-    my $res = $self->{ua}->request($req);
-    if($res->is_success) {
-      return $res->decoded_content;
-    } else {
-      $self->errstr($res->as_string);
-      return;
-    }
-  } else {
-    return $self->{ua}->get($url)->content;
-  }
+  return $self->_HTTP_request('pages', %opts);
 }
 
 =head2 likes
@@ -312,28 +256,10 @@ sub pages {
 
 sub likes {
   my($self, %opts) = @_;
-  
-  croak "No email or password defined"
-    if not $self->email or not $self->password;
 
   croak "No user or url defined" unless $self->user or $self->url;
 
-  my $url = 'http://www.tumblr.com/api/likes';
-  
-  $url .= '?'.join'&',map{qq{$_=$opts{$_}}} sort keys %opts;
-
-  $opts{email} = $self->email;
-  $opts{password} = $self->password;
-  my $req = HTTP::Request->new(POST => $url);
-  $req->content_type('application/x-www-form-urlencoded');
-  $req->content(join '&', map{ qq{$_=$opts{$_}} } sort keys %opts);
-  my $res = $self->{ua}->request($req);
-  if($res->is_success) {
-    return $res->decoded_content;
-  } else {
-    $self->errstr($res->as_string);
-    return;
-  }
+  return $self->_HTTP_request('likes', %opts);
 }
 
 =head2 like
@@ -343,23 +269,7 @@ sub likes {
 sub like {
   my($self, %opts) = @_;
 
-  $opts{email} = $self->email;
-  $opts{password} = $self->password;
-
-  croak "No email was defined" unless $self->email;
-  croak "No password was defined" unless $self->password;
-
-  my $req = HTTP::Request->new(POST => 'http://www.tumblr.com/api/like');
-  $req->content_type('application/x-www-form-urlencoded');
-  $req->content(join '&', map { qq{$_=$opts{$_}} } sort keys %opts);
-  my $res = $self->{ua}->request($req);
-  
-  if($res->is_success) {
-    return $res->decoded_content;
-  } else {
-    $self->errstr($res->as_string);
-    return;
-  }
+  return $self->_HTTP_request('like', %opts);
 }
 
 =head2 unlike
@@ -369,23 +279,7 @@ sub like {
 sub unlike {
   my($self, %opts) = @_;
 
-  $opts{email} = $self->email;
-  $opts{password} = $self->password;
-
-  croak "No email was defined" unless $self->email;
-  croak "No password was defined" unless $self->password;
-
-  my $req = HTTP::Request->new(POST => 'http://www.tumblr.com/api/unlike');
-  $req->content_type('application/x-www-form-urlencoded');
-  $req->content(join '&', map { qq{$_=$opts{$_}} } sort keys %opts);
-  my $res = $self->{ua}->request($req);
-  
-  if($res->is_success) {
-    return $res->decoded_content;
-  } else {
-    $self->errstr($res->as_string);
-    return;
-  }
+  return $self->_HTTP_request('unlike', %opts);
 }
 
 =head2 reblog
@@ -395,23 +289,7 @@ sub unlike {
 sub reblog {
   my($self, %opts) = @_;
 
-  $opts{email} = $self->email;
-  $opts{password} = $self->password;
-
-  croak "No email was defined" unless $self->email;
-  croak "No password was defined" unless $self->password;
-
-  my $req = HTTP::Request->new(POST => 'http://www.tumblr.com/api/reblog');
-  $req->content_type('application/x-www-form-urlencoded');
-  $req->content(join '&', map { qq{$_=$opts{$_}} } sort keys %opts);
-  my $res = $self->{ua}->request($req);
-  
-  if($res->is_success) {
-    return $res->decoded_content;
-  } else {
-    $self->errstr($res->as_string);
-    return;
-  }
+  return $self->_HTTP_request('reblog', %opts);
 }
 
 =head2 write
@@ -433,36 +311,9 @@ argument.
 sub write {
 	my($self, %opts) = @_;
 
-	croak "No email was defined" unless $self->email;
-	croak "No password was defined" unless $self->password;
 	croak "No type defined for writing" unless $opts{type};
 	
-	$opts{'email'} = $self->email;
-	$opts{'password'} = $self->password;
-	
-	my $req;
-	my $res;
-	
-	# If there's a file to upload or not
-	if($opts{data}) {
-		$opts{data} = [$opts{data}]; # whack!
-		
-		$res = $self->{ua}->request(POST 'http://www.tumblr.com/api/write', Content_Type => 'form-data', Content => \%opts);
-		
-	} else {
-		$req = HTTP::Request->new(POST => 'http://www.tumblr.com/api/write');
-		$req->content_type('application/x-www-form-urlencoded');
-		$req->content(join '&', map{ qq{$_=$opts{$_}} } sort keys %opts);
-		$res = $self->{ua}->request($req);
-	}
-	
-	if($res->is_success) {
-		return $res->decoded_content;
-	} else {
-		$self->errstr($res->as_string);
-		return;
-	}
-	
+	return $self->_HTTP_request('write', %opts);
 }
 
 =head2 edit
@@ -492,24 +343,7 @@ Deletes the post idenfied with the C<post-id> id.
 sub delete {
   my($self, %opts) = @_;
 
-  $opts{email} = $self->email;
-  $opts{password} = $self->password;
-
-  croak "No email was defined" unless $self->email;
-  croak "No password was defined" unless $self->password;
-
-  my $req = HTTP::Request->new(POST => 'http://www.tumblr.com/api/delete');
-  $req->content_type('application/x-www-form-urlencoded');
-  $req->content(join '&', map { qq{$_=$opts{$_}} } sort keys %opts);
-  my $res = $self->{ua}->request($req);
-  
-  if($res->is_success) {
-    return $res->decoded_content;
-  } else {
-    $self->errstr($res->as_string);
-    return;
-  }
-}
+  return $self->_HTTP_request('delete', %opts);}
 
 =head2 check_audio
 
@@ -528,9 +362,7 @@ sub check_audio {
 	croak "No email was defined" unless $self->email;
 	croak "No password was defined" unless $self->password;
 	
-	$self->_POST_request(
-		qq{action=check-audio&email=${\$self->email}&password=${\$self->password}}
-	) or return;
+  return $self->_HTTP_request('check-audio');
 }
 
 =head2 check_vimeo
@@ -551,11 +383,7 @@ sub check_vimeo {
 	croak "No email was defined" unless $self->email;
 	croak "No password was defined" unless $self->password;
 	
-	$self->_POST_request(
-		qq{action=check-vimeo&email=${\$self->email}&password=${\$self->password}}
-	) or return;
-	
-	return $self->{_response};
+	return $self->_HTTP_request('check-vimeo');
 }
 
 =head2 authenticate
@@ -573,9 +401,7 @@ sub authenticate {
 	croak "No email was defined" unless $self->email;
 	croak "No password was defined" unless $self->password;
 
-	$self->_POST_request(
-		qq{action=authenticate&email=${\$self->email}&password=${\$self->password}}
-	) or return;
+  return $self->_HTTP_request('authenticate');
 }
 
 =head2 errstr
@@ -593,34 +419,84 @@ sub errstr {
 	$self->{errstr};
 }
 
-=head2 _POST_request
+# _HTTP_request
+# 
+# execute the request to the Tumblr API.
 
- _POST_request($string);
+sub _HTTP_request
+{
+  my($self, $action, %opts) = @_;
 
-Internal method to post C<$string> to Tumblr. You shouldn't be using it anyway.
+  my %endpoints = (
+      authenticate    => $self->{_tumblr}.'/api/write',
+      'check-audio'   => $self->{_tumblr}.'/api/write',
+      'check-vimeo'   => $self->{_tumblr}.'/api/write',
+      delete          => $self->{_tumblr}.'/api/delete',
+      like            => $self->{_tumblr}.'/api/like',
+      likes           => $self->{_tumblr}.'/api/likes',
+      pages           => $self->url.'/api/pages?'.join('&',map{qq{$_=$opts{$_}}} sort keys %opts),
+      read            => $self->url.'/api/read?' .join('&',map{qq{$_=$opts{$_}}} sort keys %opts),
+      'read-json'     => $self->url.'/api/read/json?'.join('&',map{qq{$_=$opts{$_}}} sort keys %opts),
+      reblog          => $self->{_tumblr}.'/api/reblog',
+      unlike          => $self->{_tumblr}.'/api/unlike',
+      write           => $self->{_tumblr}.'/api/write',
+  );
+  
+  my %is_secure = (
+      pages       => $opts{auth} || 0,
+      read        => $opts{auth} || 0,
+      'read-json' => $opts{auth} || 0,
+  );
 
-=cut
+  croak "No url defined"
+    if ((not $self->url) and (($action eq 'read') or ($action eq 'pages')));
 
+  my $url = $endpoints{$action};
+  my $needs_auth = $is_secure{$action} || 1;
+  
+  $opts{action} = $action
+    if (($action eq 'authenticate') or ($action eq 'check-audio') or ($action eq 'check-vimeo'));
 
-sub _POST_request {
-	my($self, $args) = @_;
-	
-	croak "No arguments present" unless $args;
-	
-	my $req = HTTP::Request->new(POST => 'http://www.tumblr.com/api/write');
-	$req->content_type('application/x-www-form-urlencoded');
-	$req->content($args);
-	
-	my $res = $self->{ua}->request($req);
-	
-	if($res->is_success) {
-		return $self->{_response} = $res->decoded_content;
-	} else {
-		$self->{_response} = $res->decoded_content;
-		$self->errstr($self->{_response});
-		return;
-	}
-	
+  if ($needs_auth)
+  {
+    croak "No email or password defined"
+      if not $self->email or not $self->password;
+    delete $opts{auth};
+
+    $opts{email} = $self->email;
+    $opts{password} = $self->password;
+
+    my $res;
+
+    # If there's a file to upload or not
+    if ($opts{data})
+    {
+      $opts{data} = [$opts{data}]; # whack!
+      $res = $self->{ua}->request(POST $url, Content_Type => 'form-data', Content => \%opts);
+    }
+    else
+    {
+      my $req = HTTP::Request->new(POST => $url);
+      $req->content_type('application/x-www-form-urlencoded');
+      $req->content(join '&', map { qq{$_=$opts{$_}} } sort keys %opts);
+      $res = $self->{ua}->request($req);
+    }
+
+    if ($res->is_success)
+    {
+      $self->{_response} = $res->decoded_content;
+      return $self->{_response};
+    }
+    else
+    {
+      $self->errstr($res->as_string);
+      return $self->errstr;
+    }
+  }
+  else
+  {
+    return $self->{ua}->get($url)->content;
+  }
 }
 
 =head1 SEE ALSO
