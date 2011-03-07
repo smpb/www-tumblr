@@ -168,7 +168,7 @@ URL (ie. maria.tumblr.com).
 sub user {
 	my($self, $user) = @_;
 	$self->{user} = $user if $user;
-	$self->{user};
+	$self->{user} || '';
 }
 
 =head2 url
@@ -194,7 +194,7 @@ sub url {
 			if $self->user;
 	}
 	
-	return $self->{url};
+	return $self->{url} || '';
 }
 
 =head2 read_json
